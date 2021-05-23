@@ -50,7 +50,7 @@ def recv_message(conn):
     return msg
 
 def check_message():
-    ready = select.select([s], [], [], 1000)
+    ready = select.select([s], [], [], 1)
     if ready[0]:
         response = recv_message(s)
         return response
@@ -79,14 +79,16 @@ def server_msg():
     response = check_message()
     server_log(response)
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s', datefmt='%m/%d/%Y %H:%M:%S')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%H:%M:%S')
 # Open a TCP/IP socket
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.connect((HOST, PORT))
     s.setblocking(0)
 
     # Send a connection request
-    create_session("myUserName", s)
+    print("Insert username")
+    username = input('>>> ')
+    create_session(username, s)
 
     # Receive the connection response
     server_msg()
@@ -99,4 +101,3 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             break
         send_user_request(user_input, s)
         server_msg()
-
