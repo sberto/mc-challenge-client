@@ -78,14 +78,13 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.setblocking(0)
 
     # Send a connection request
-    print("Insert username")
-    username = input('>>> ')
+    username = input('Insert username\n>>> ')
     create_session(username, s)
 
+    logging.info('Connection established. Insert \'quit\' to exit.')
     # Receive the connection response
     server_msg()
 
-    print('Connection established. Insert \'quit\' to exit.')
     user_input = ''
     while user_input != 'quit':
         user_input = input('>>> ')
