@@ -33,21 +33,13 @@ def send_message(conn, msg):
 
 def recv_message(conn):
     """ Receive a message, prefixed with its size, from a TCP/IP socket """
-    # Receive the size of the message data
-    data = b''
-    while True:
-        try:
-            data += conn.recv(8)
-            size = decode_varint(data)
-            break
-        except IndexError:
-            pass
     # Receive the message data
     data = conn.recv(16384)
     # Decode the message
-    msg = erl_playground_pb2.server_message()
-    msg.ParseFromString(data)
-    return msg
+    msg = erl_playground_pb2.envelope()
+    msg.ParseFromString(data[2:])
+    message = msg.uncompressed_data.server_message_data.message
+    return message
 
 def check_message():
     ready = select.select([s], [], [], 1)
@@ -71,7 +63,7 @@ def send_user_request(msg, s):
     send_message(s, env)
 
 def server_log(msg):
-    msgList = msg.message.split('~n')
+    msgList = msg.split('~n')
     for m in msgList:
         logging.info("[SERVER]: %s" % m)
 
