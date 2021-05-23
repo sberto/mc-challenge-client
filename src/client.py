@@ -2,6 +2,9 @@
 
 import socket
 import time
+import select
+import logging
+
 from google.protobuf.internal.encoder import _VarintEncoder
 from google.protobuf.internal.decoder import _DecodeVarint
 import erl_playground_pb2
@@ -24,9 +27,8 @@ def decode_varint(data):
 def send_message(conn, msg):
     """ Send a message, prefixed with its size, to a TPC/IP socket """
     data = msg.SerializeToString()
-    size = encode_varint(len(data)+8)
-    conn.sendall(size)
-    conn.sendall(data)
+    size = encode_varint(len(data))
+    conn.sendall(b'\x00'+size+data)
 
 
 def recv_message(conn):
@@ -47,19 +49,54 @@ def recv_message(conn):
     msg.ParseFromString(data)
     return msg
 
+def check_message():
+    ready = select.select([s], [], [], 1000)
+    if ready[0]:
+        response = recv_message(s)
+        return response
+    return "timeout"
+
+def create_session(username, s):
+    logging.debug('Sending create-session msg with username \"%s\"' % username)
+    env = erl_playground_pb2.envelope()
+    env.uncompressed_data.type = 1
+    env.uncompressed_data.create_session_data.username = username
+    send_message(s, env)
+
+def send_user_request(msg, s):
+    logging.debug('Sending user_request msg with message \"%s\"' % msg)
+    env = erl_playground_pb2.envelope()
+    env.uncompressed_data.type = 3
+    env.uncompressed_data.user_request_data.message = msg
+    send_message(s, env)
+
+def server_log(msg):
+    msgList = msg.message.split('~n')
+    for m in msgList:
+        logging.info("[SERVER]: %s" % m)
+
+def server_msg():
+    response = check_message()
+    server_log(response)
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s', datefmt='%m/%d/%Y %H:%M:%S')
 # Open a TCP/IP socket
-rpc_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-rpc_conn.connect((HOST, PORT))
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    s.connect((HOST, PORT))
+    s.setblocking(0)
 
-# Send a connection request
-env = erl_playground_pb2.envelope()
-env.uncompressed_data.type = 1
-env.uncompressed_data.create_session_data.username = 'Jeb'
-send_message(rpc_conn, env)
+    # Send a connection request
+    create_session("myUserName", s)
 
+    # Receive the connection response
+    server_msg()
 
-# Receive the connection response
-response = recv_message(rpc_conn)
-print(response)
-# bla = response.uncompressed_data.server_message_data.message
-# rpc_conn.recv(16384)
+    print('Connection established. Insert \'quit\' to exit.')
+    user_input = ''
+    while user_input != 'quit':
+        user_input = input('>>> ')
+        if user_input == 'quit':
+            break
+        send_user_request(user_input, s)
+        server_msg()
+
