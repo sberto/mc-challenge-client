@@ -73,22 +73,28 @@ def server_msg():
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%H:%M:%S')
 # Open a TCP/IP socket
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    s.connect((HOST, PORT))
-    s.setblocking(0)
+while True:
+    try:#moved this line here
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect((HOST, PORT))
+            s.setblocking(0)
 
-    # Send a connection request
-    username = input('Insert username\n>>> ')
-    create_session(username, s)
+            # Send a connection request
+            username = input('Insert username\n>>> ')
+            create_session(username, s)
 
-    logging.info('Connection established. Insert \'quit\' to exit.')
-    # Receive the connection response
-    server_msg()
+            logging.info('Connection established. Insert \'quit\' to exit.')
+            # Receive the connection response
+            server_msg()
 
-    user_input = ''
-    while user_input != 'quit':
-        user_input = input('>>> ')
-        if user_input == 'quit':
-            break
-        send_user_request(user_input, s)
-        server_msg()
+            user_input = ''
+            while user_input != 'quit':
+                user_input = input('>>> ')
+                if user_input == 'quit':
+                    break
+                send_user_request(user_input, s)
+                server_msg()
+        break
+    except socket.error:
+        print("Connection Failed, Retrying..")
+        time.sleep(1)
