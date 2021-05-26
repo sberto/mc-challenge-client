@@ -4,6 +4,7 @@ import socket
 import time
 import select
 import logging
+import struct
 
 from google.protobuf.internal.encoder import _VarintEncoder
 from google.protobuf.internal.decoder import _DecodeVarint
@@ -33,11 +34,14 @@ def send_message(conn, msg):
 
 def recv_message(conn):
     """ Receive a message, prefixed with its size, from a TCP/IP socket """
+    # Receive the message size
+    bitsize = conn.recv(2)
+    size=struct.unpack("!i", b'\x00\x00'+bitsize)[0]
     # Receive the message data
-    data = conn.recv(16384)
+    data = conn.recv(size)
     # Decode the message
     msg = erl_playground_pb2.envelope()
-    msg.ParseFromString(data[2:])
+    msg.ParseFromString(data)
     message = msg.uncompressed_data.server_message_data.message
     return message
 
@@ -46,7 +50,7 @@ def check_message():
     if ready[0]:
         response = recv_message(s)
         return response
-    return "timeout"
+    return "no messages from server"
 
 def create_session(username, s):
     logging.debug('Sending create-session msg with username \"%s\"' % username)
