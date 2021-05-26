@@ -69,7 +69,9 @@ def send_user_request(msg, s):
 def server_log(msg):
     msgList = msg.split('~n')
     for m in msgList:
-        logging.info("[SERVER]: %s" % m)
+        NORMAL = '\033[0m'
+        COLOR = '\033[92m'
+        logging.info('[{color}SERVER{normal}]: {message}'.format(color=COLOR, normal=NORMAL, message=m))
     print(">>> ", end='', flush=True)
 
 import sys
