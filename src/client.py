@@ -45,12 +45,12 @@ def recv_message(conn):
     message = msg.uncompressed_data.server_message_data.message
     return message
 
-def check_message():
-    ready = select.select([s], [], [], 1)
+def check_messages_from_server():
+    ready = select.select([s], [], [], 0.0)
     if ready[0]:
         response = recv_message(s)
-        return response
-    return "no messages from server"
+        server_log(response)
+    return "no_messages"
 
 def create_session(username, s):
     logging.debug('Sending create-session msg with username \"%s\"' % username)
@@ -70,11 +70,9 @@ def server_log(msg):
     msgList = msg.split('~n')
     for m in msgList:
         logging.info("[SERVER]: %s" % m)
+    print(">>> ", end='', flush=True)
 
-def server_msg():
-    response = check_message()
-    server_log(response)
-
+import sys
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%H:%M:%S')
 # Open a TCP/IP socket
 while True:
@@ -88,16 +86,19 @@ while True:
             create_session(username, s)
 
             logging.info('Connection established. Insert \'quit\' to exit.')
-            # Receive the connection response
-            server_msg()
 
             user_input = ''
             while user_input != 'quit':
-                user_input = input('>>> ')
-                if user_input == 'quit':
-                    break
-                send_user_request(user_input, s)
-                server_msg()
+                check_messages_from_server()
+                incoming = select.select([sys.stdin],[],[],0.0)[0]
+                if len(incoming) > 0:
+                    user_input = sys.stdin.readline()
+                    if user_input[-1:] == '\n':
+                        user_input = user_input[:-1]
+                    if user_input == 'quit':
+                        break
+                    send_user_request(user_input, s)
+                time.sleep(0.1)
         break
     except socket.error:
         print("Connection Failed, Retrying..")
