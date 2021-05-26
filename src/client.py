@@ -36,6 +36,8 @@ def recv_message(conn):
     """ Receive a message, prefixed with its size, from a TCP/IP socket """
     # Receive the message size
     bitsize = conn.recv(2)
+    if bitsize == b'':
+        return
     size=struct.unpack("!i", b'\x00\x00'+bitsize)[0]
     # Receive the message data
     data = conn.recv(size)
@@ -43,13 +45,12 @@ def recv_message(conn):
     msg = erl_playground_pb2.envelope()
     msg.ParseFromString(data)
     message = msg.uncompressed_data.server_message_data.message
-    return message
+    server_log(message)
 
-def check_messages_from_server():
+def check_messages_from_server(s):
     ready = select.select([s], [], [], 0.0)
     if ready[0]:
         response = recv_message(s)
-        server_log(response)
     return "no_messages"
 
 def create_session(username, s):
@@ -91,7 +92,7 @@ while True:
 
             user_input = ''
             while user_input != 'quit':
-                check_messages_from_server()
+                check_messages_from_server(s)
                 incoming = select.select([sys.stdin],[],[],0.0)[0]
                 if len(incoming) > 0:
                     user_input = sys.stdin.readline()
@@ -101,6 +102,7 @@ while True:
                         break
                     send_user_request(user_input, s)
                 time.sleep(0.1)
+                s.sendall(b'')
         break
     except socket.error:
         print("Connection Failed, Retrying..")
